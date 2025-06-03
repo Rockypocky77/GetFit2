@@ -1,0 +1,65 @@
+
+{% extends "base.html" %}
+
+{% block title %}Workout Generator - Home{% endblock %}
+
+{% block content %}
+<div class="text-center">
+    <h1 class="display-4 mb-4">
+        <i class="fas fa-dumbbell text-primary"></i>
+        Enhanced Workout Generator
+    </h1>
+    <p class="lead mb-5">
+        Create personalized workout plans with progressive overload and detailed scheduling.
+    </p>
+    
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body p-5">
+                    <h3 class="card-title mb-4">
+                        <i class="fas fa-rocket text-primary me-2"></i>
+                        Get Started
+                    </h3>
+                    <p class="card-text mb-4">
+                        Ready to build your perfect workout routine? Let's set up your personalized plan based on your goals, equipment, and schedule.
+                    </p>
+                    <a href="{{ url_for('setup') }}" class="btn btn-primary btn-lg">
+                        <i class="fas fa-play me-2"></i>Start Building My Workout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mt-5">
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-chart-line fa-3x text-primary mb-3"></i>
+                    <h5 class="card-title">Progressive Overload</h5>
+                    <p class="card-text">Automatically calculated weight progression with 5lb increments for consistent gains.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-cogs fa-3x text-primary mb-3"></i>
+                    <h5 class="card-title">Equipment Flexible</h5>
+                    <p class="card-text">Works with dumbbells, barbells, machines, or bodyweight exercises only.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-calendar-alt fa-3x text-primary mb-3"></i>
+                    <h5 class="card-title">Custom Scheduling</h5>
+                    <p class="card-text">Choose from 30-day, year-long, or aggressive progression plans.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,86 @@
+
+{% extends "base.html" %}
+
+{% block title %}Setup - Workout Generator{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="mb-0">
+                    <i class="fas fa-user-cog text-primary me-2"></i>
+                    Personal Information & Equipment
+                </h3>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="age" class="form-label">
+                                    <i class="fas fa-birthday-cake me-1"></i>Age
+                                </label>
+                                <input type="number" class="form-control" id="age" name="age" 
+                                       value="25" min="12" max="80" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="frequency" class="form-label">
+                                    <i class="fas fa-calendar-week me-1"></i>Workouts per Week
+                                </label>
+                                <select class="form-select" id="frequency" name="frequency" required>
+                                    <option value="3">3 times per week</option>
+                                    <option value="4" selected>4 times per week (Recommended)</option>
+                                    <option value="5">5 times per week</option>
+                                    <option value="6">6 times per week</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="form-label">
+                            <i class="fas fa-dumbbell me-1"></i>Available Equipment
+                        </label>
+                        <div class="row">
+                            {% for value, description in equipment_options.items() %}
+                            <div class="col-md-6 mb-2">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="equipment" 
+                                           id="equipment{{ value }}" value="{{ value }}"
+                                           {% if value == 3 %}checked{% endif %}>
+                                    <label class="form-check-label" for="equipment{{ value }}">
+                                        {% if value == 1 %}
+                                            <i class="fas fa-weight-hanging me-2"></i>{{ description }}
+                                        {% elif value == 2 %}
+                                            <i class="fas fa-cog me-2"></i>{{ description }}
+                                        {% elif value == 3 %}
+                                            <i class="fas fa-star me-2"></i>{{ description }}
+                                        {% else %}
+                                            <i class="fas fa-running me-2"></i>{{ description }}
+                                        {% endif %}
+                                    </label>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Note:</strong> Weight increases are in 5lb increments only (2.5lb plates on each side).
+                    </div>
+                    
+                    <div class="text-center">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-arrow-right me-2"></i>Generate Workout Plan
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

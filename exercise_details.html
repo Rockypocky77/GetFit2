@@ -1,0 +1,102 @@
+
+{% extends "base.html" %}
+
+{% block title %}Exercise Details - Workout Generator{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="mb-0">
+                    <i class="fas fa-clipboard-list text-primary me-2"></i>
+                    Exercise Configuration
+                </h3>
+                <p class="mb-0 mt-2 text-muted">Configure sets, reps, current weight, and target weight for each exercise</p>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    {% for day, exercises in plan.items() %}
+                    <div class="mb-5">
+                        <h4 class="border-bottom pb-2">
+                            <i class="fas fa-calendar-day text-primary me-2"></i>{{ day }}
+                        </h4>
+                        
+                        {% for exercise in exercises %}
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <h5 class="card-title">{{ loop.index }}. {{ exercise }}</h5>
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <label class="form-label">Sets</label>
+                                        <input type="number" class="form-control" 
+                                               name="{{ day }}_{{ loop.index0 }}_sets" 
+                                               value="3" min="1" max="10" required>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">Reps per Set</label>
+                                        <input type="number" class="form-control" 
+                                               name="{{ day }}_{{ loop.index0 }}_reps" 
+                                               value="10" min="1" max="50" required>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">Current Weight (lbs)</label>
+                                        <input type="number" class="form-control" 
+                                               name="{{ day }}_{{ loop.index0 }}_current" 
+                                               value="0" min="0" step="5" required>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">Target Weight (lbs)</label>
+                                        <input type="number" class="form-control" 
+                                               name="{{ day }}_{{ loop.index0 }}_target" 
+                                               value="5" min="5" step="5" required>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endfor %}
+                    
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Remember:</strong> All weight increases are in 5lb increments. Target weight should be higher than current weight.
+                    </div>
+                    
+                    <div class="text-center">
+                        <button type="submit" class="btn btn-success btn-lg">
+                            <i class="fas fa-arrow-right me-2"></i>Continue to Progression Planning
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Auto-adjust target weight to be at least current weight + 5
+document.querySelectorAll('input[name*="_current"]').forEach(input => {
+    input.addEventListener('change', function() {
+        const fieldPrefix = this.name.replace('_current', '');
+        const targetInput = document.querySelector(`input[name="${fieldPrefix}_target"]`);
+        const currentValue = parseInt(this.value) || 0;
+        const targetValue = parseInt(targetInput.value) || 0;
+        
+        if (targetValue <= currentValue) {
+            targetInput.value = currentValue + 5;
+        }
+    });
+});
+
+// Ensure values are multiples of 5
+document.querySelectorAll('input[step="5"]').forEach(input => {
+    input.addEventListener('change', function() {
+        const value = parseInt(this.value) || 0;
+        this.value = Math.round(value / 5) * 5;
+    });
+});
+</script>
+{% endblock %}

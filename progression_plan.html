@@ -1,0 +1,105 @@
+
+{% extends "base.html" %}
+
+{% block title %}Progression Plan - Workout Generator{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="mb-0">
+                    <i class="fas fa-chart-line text-primary me-2"></i>
+                    Choose Your Progression Plan
+                </h3>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="card h-100 plan-option" data-plan="thirty_day">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-clock fa-3x text-primary mb-3"></i>
+                                    <h5 class="card-title">30-Day Plan</h5>
+                                    <p class="card-text">Moderate progression over 4 weeks. Perfect for beginners or those returning to the gym.</p>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="plan_type" 
+                                               id="thirty_day" value="thirty_day" checked>
+                                        <label class="form-check-label" for="thirty_day">
+                                            Select 30-Day Plan
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="card h-100 plan-option" data-plan="yearlong">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-calendar fa-3x text-success mb-3"></i>
+                                    <h5 class="card-title">Year-Long Plan</h5>
+                                    <p class="card-text">Very gradual progression over 52 weeks. Ideal for long-term sustainable growth.</p>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="plan_type" 
+                                               id="yearlong" value="yearlong">
+                                        <label class="form-check-label" for="yearlong">
+                                            Select Year-Long Plan
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="card h-100 plan-option" data-plan="as_soon_as_possible">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-rocket fa-3x text-danger mb-3"></i>
+                                    <h5 class="card-title">ASAP Plan</h5>
+                                    <p class="card-text">Aggressive progression with autoregulation. For experienced lifters who want rapid gains.</p>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="plan_type" 
+                                               id="as_soon_as_possible" value="as_soon_as_possible">
+                                        <label class="form-check-label" for="as_soon_as_possible">
+                                            Select ASAP Plan
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info mt-4">
+                        <i class="fas fa-lightbulb me-2"></i>
+                        <strong>Tip:</strong> The 30-day plan is recommended for most users as it provides a good balance between challenge and achievability.
+                    </div>
+                    
+                    <div class="text-center mt-4">
+                        <button type="submit" class="btn btn-success btn-lg">
+                            <i class="fas fa-rocket me-2"></i>Generate Final Schedule
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('.plan-option').forEach(card => {
+    card.addEventListener('click', function() {
+        const planType = this.dataset.plan;
+        const radioButton = document.getElementById(planType);
+        radioButton.checked = true;
+        
+        // Visual feedback
+        document.querySelectorAll('.plan-option').forEach(c => c.classList.remove('border-primary'));
+        this.classList.add('border-primary');
+    });
+});
+
+// Add visual feedback for pre-selected option
+document.querySelector('.plan-option[data-plan="thirty_day"]').classList.add('border-primary');
+</script>
+{% endblock %}

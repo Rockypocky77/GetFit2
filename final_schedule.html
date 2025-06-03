@@ -1,0 +1,695 @@
+
+{% extends "base.html" %}
+
+{% block title %}Final Schedule - Workout Generator{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h3 class="mb-0">
+                    <i class="fas fa-calendar-alt text-primary me-2"></i>
+                    Your Workout Calendar
+                </h3>
+                <div>
+                    <button class="btn btn-outline-primary btn-sm me-2" id="rearrangeBtn">
+                        <i class="fas fa-arrows-alt me-1"></i>Rearrange Days
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm" id="todayBtn">
+                        <i class="fas fa-home me-1"></i>Today
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Calendar Navigation -->
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <button class="btn btn-outline-primary" id="prevMonth">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <h4 id="currentMonth" class="mb-0"></h4>
+                    <button class="btn btn-outline-primary" id="nextMonth">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+
+                <!-- Calendar Grid -->
+                <div class="calendar-container">
+                    <div class="calendar-header">
+                        <div class="calendar-day-header">Sun</div>
+                        <div class="calendar-day-header">Mon</div>
+                        <div class="calendar-day-header">Tue</div>
+                        <div class="calendar-day-header">Wed</div>
+                        <div class="calendar-day-header">Thu</div>
+                        <div class="calendar-day-header">Fri</div>
+                        <div class="calendar-day-header">Sat</div>
+                    </div>
+                    <div class="calendar-grid" id="calendarGrid">
+                        <!-- Calendar days will be populated by JavaScript -->
+                    </div>
+                </div>
+
+                <!-- Workout Types Legend -->
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <h5>Workout Types:</h5>
+                        <div class="d-flex flex-wrap gap-3">
+                            <span class="badge bg-danger p-2">Push Day</span>
+                            <span class="badge bg-success p-2">Pull Day</span>
+                            <span class="badge bg-warning p-2">Legs Day</span>
+                            <span class="badge bg-info p-2">Misc Day</span>
+                            <span class="badge bg-secondary p-2">Rest Day</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Workout Detail Modal -->
+<div class="modal fade" id="workoutModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="workoutModalTitle"></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="workoutModalBody">
+                <!-- Workout details will be populated here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Rearrange Modal -->
+<div class="modal fade" id="rearrangeModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Rearrange Workout Schedule</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Drag to reorder your workout days:</p>
+                <div id="sortableWorkouts" class="list-group">
+                    {% for day in schedule.keys() %}
+                    <div class="list-group-item" data-day="{{ day }}">
+                        <i class="fas fa-grip-vertical me-2"></i>{{ day }}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveArrangement">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<style>
+.calendar-container {
+    max-width: 100%;
+    margin: 0 auto;
+}
+
+.calendar-header {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    background: #f8f9fa;
+    border-radius: 8px 8px 0 0;
+}
+
+.calendar-day-header {
+    padding: 15px 5px;
+    text-align: center;
+    font-weight: bold;
+    border-right: 1px solid #dee2e6;
+}
+
+.calendar-day-header:last-child {
+    border-right: none;
+}
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    border: 1px solid #dee2e6;
+    border-top: none;
+}
+
+.calendar-day {
+    min-height: 80px;
+    border-right: 1px solid #dee2e6;
+    border-bottom: 1px solid #dee2e6;
+    padding: 8px;
+    position: relative;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.calendar-day:hover {
+    background-color: #f8f9fa;
+}
+
+.calendar-day:last-child {
+    border-right: none;
+}
+
+.calendar-day.other-month {
+    background-color: #f5f5f5;
+    color: #999;
+}
+
+.calendar-day.today {
+    background-color: #e3f2fd;
+    border: 2px solid #2196f3;
+}
+
+.day-number {
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.workout-type {
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 12px;
+    display: inline-block;
+    color: white;
+    font-weight: 500;
+}
+
+.workout-push { background-color: #dc3545; }
+.workout-pull { background-color: #28a745; }
+.workout-legs { background-color: #ffc107; color: #000; }
+.workout-misc { background-color: #17a2b8; }
+.workout-rest { background-color: #6c757d; }
+
+.list-group-item {
+    cursor: move;
+    transition: all 0.3s ease;
+}
+
+.list-group-item:hover {
+    background-color: #f8f9fa;
+    transform: translateX(5px);
+}
+
+.sortable-ghost {
+    opacity: 0.4;
+    background-color: #e3f2fd;
+}
+
+.sortable-chosen {
+    background-color: #2196f3;
+    color: white;
+}
+
+.sortable-drag {
+    transform: rotate(5deg);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+
+.dragging {
+    opacity: 0.5;
+    transform: rotate(5deg);
+    z-index: 1000;
+}
+
+.drag-over {
+    background-color: #e3f2fd !important;
+    border: 2px dashed #2196f3 !important;
+}
+
+.workout-type[draggable="true"] {
+    cursor: move;
+    transition: all 0.2s ease;
+}
+
+.workout-type[draggable="true"]:hover {
+    transform: scale(1.05);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+@media (max-width: 768px) {
+    .calendar-day {
+        min-height: 60px;
+        padding: 4px;
+    }
+    
+    .workout-type {
+        font-size: 9px;
+        padding: 1px 4px;
+    }
+    
+    .day-number {
+        font-size: 12px;
+    }
+}
+</style>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+<script>
+class WorkoutCalendar {
+    constructor() {
+        this.currentDate = new Date();
+        this.workoutSchedule = {{ schedule | tojson | safe }};
+        this.workoutPattern = {{ workout_pattern | tojson | safe }};
+        this.frequency = {{ frequency }};
+        this.planType = "{{ plan_type }}";
+        this.workoutOrder = {{ schedule.keys() | list | tojson | safe }};
+        
+        this.workoutTypes = {
+            'Push': { type: 'push', keywords: ['push', 'chest', 'shoulder', 'tricep'] },
+            'Pull': { type: 'pull', keywords: ['pull', 'back', 'bicep', 'lat'] },
+            'Legs': { type: 'legs', keywords: ['leg', 'squat', 'deadlift', 'quad', 'hamstring', 'calf'] },
+            'Misc': { type: 'misc', keywords: [] }
+        };
+        
+        this.init();
+    }
+    
+    init() {
+        this.renderCalendar();
+        this.setupEventListeners();
+        this.setupSortable();
+    }
+    
+    setupEventListeners() {
+        document.getElementById('prevMonth').addEventListener('click', () => {
+            this.currentDate.setMonth(this.currentDate.getMonth() - 1);
+            this.renderCalendar();
+        });
+        
+        document.getElementById('nextMonth').addEventListener('click', () => {
+            this.currentDate.setMonth(this.currentDate.getMonth() + 1);
+            this.renderCalendar();
+        });
+        
+        document.getElementById('todayBtn').addEventListener('click', () => {
+            this.currentDate = new Date();
+            this.renderCalendar();
+        });
+        
+        document.getElementById('rearrangeBtn').addEventListener('click', () => {
+            new bootstrap.Modal(document.getElementById('rearrangeModal')).show();
+        });
+        
+        document.getElementById('saveArrangement').addEventListener('click', () => {
+            this.saveWorkoutArrangement();
+        });
+    }
+    
+    setupSortable() {
+        Sortable.create(document.getElementById('sortableWorkouts'), {
+            animation: 150,
+            ghostClass: 'sortable-ghost',
+            chosenClass: 'sortable-chosen',
+            dragClass: 'sortable-drag',
+            onStart: function(evt) {
+                evt.item.style.transform = 'rotate(5deg)';
+            },
+            onEnd: function(evt) {
+                evt.item.style.transform = '';
+            }
+        });
+    }
+    
+    getWorkoutType(dayName) {
+        const exercises = this.workoutSchedule[dayName];
+        if (!exercises || Object.keys(exercises).length === 0) return 'rest';
+        
+        // Direct mapping based on day name
+        if (dayName.toLowerCase().includes('push')) return 'push';
+        if (dayName.toLowerCase().includes('pull')) return 'pull';
+        if (dayName.toLowerCase().includes('leg')) return 'legs';
+        if (dayName.toLowerCase().includes('misc')) return 'misc';
+        
+        return 'misc';
+    }
+    
+    calculateWeightProgression(exercise, sessionNumber) {
+        // Get exercise details
+        const exerciseData = this.findExerciseData(exercise);
+        if (!exerciseData) return { current: 0, target: 0 };
+        
+        const currentWeight = exerciseData.current_weight;
+        const targetWeight = exerciseData.target_weight;
+        
+        // Use autoregulation: stay at each weight for 2-4 sessions before increasing
+        const jump = 5; // 5 lb increments
+        let weight = currentWeight;
+        let sessionsAtWeight = 0;
+        let totalSessions = 0;
+        
+        // Randomly vary how long we stay at each weight (2-4 sessions)
+        const getSessionsAtWeight = (weightLevel) => {
+            // Use weight level as seed for consistency
+            const seed = weightLevel / 5;
+            return 2 + (Math.floor(seed) % 3); // 2, 3, or 4 sessions
+        };
+        
+        while (totalSessions < sessionNumber && weight < targetWeight) {
+            const sessionsNeeded = getSessionsAtWeight(weight);
+            
+            if (totalSessions + sessionsNeeded > sessionNumber) {
+                // We're still at this weight for this session
+                return { current: weight, target: targetWeight };
+            }
+            
+            totalSessions += sessionsNeeded;
+            if (weight < targetWeight) {
+                weight += jump;
+            }
+        }
+        
+        // Don't exceed target weight
+        if (weight > targetWeight) {
+            weight = targetWeight;
+        }
+        
+        return { current: weight, target: targetWeight };
+    }
+    
+    findExerciseData(exerciseName) {
+        // Search through all workout days to find this exercise
+        for (const [day, exercises] of Object.entries(this.workoutSchedule)) {
+            if (exercises[exerciseName]) {
+                return exercises[exerciseName].details;
+            }
+        }
+        return null;
+    }
+    
+    getWorkoutForDate(date) {
+        const dateStr = date.toISOString().split('T')[0];
+        
+        // Check if there's an override for this date
+        if (this.dateWorkoutOverrides && this.dateWorkoutOverrides.has(dateStr)) {
+            return this.dateWorkoutOverrides.get(dateStr);
+        }
+        
+        const startDate = new Date();
+        startDate.setHours(0, 0, 0, 0);
+        
+        const diffTime = date.getTime() - startDate.getTime();
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        
+        if (diffDays < 0) return { type: 'rest', day: null };
+        
+        // Calculate which day of the week it is (0 = Sunday, 1 = Monday, etc.)
+        const dayOfWeek = date.getDay();
+        
+        // Map workout pattern days to day numbers
+        const workoutDayMap = {
+            'monday': 1, 'tuesday': 2, 'wednesday': 3, 
+            'thursday': 4, 'friday': 5, 'saturday': 6, 'sunday': 0
+        };
+        
+        // Check if this day is a workout day based on workout pattern
+        const patternDay = this.workoutPattern.find(day => 
+            workoutDayMap[day.toLowerCase()] === dayOfWeek
+        );
+        
+        if (patternDay) {
+            // Calculate which workout in the cycle this should be
+            const patternIndex = this.workoutPattern.indexOf(patternDay);
+            const workoutIndex = patternIndex % this.workoutOrder.length;
+            const workoutDay = this.workoutOrder[workoutIndex];
+            
+            // Calculate session number for this specific workout type
+            const workoutsSinceStart = Math.floor(diffDays / 7) * this.frequency + 
+                                      this.workoutPattern.slice(0, patternIndex + 1).length;
+            
+            // Calculate which session this is for this specific workout day
+            const cycleLength = this.workoutOrder.length;
+            const sessionNumber = Math.floor(workoutsSinceStart / cycleLength) + 1;
+            
+            return {
+                type: this.getWorkoutType(workoutDay),
+                day: workoutDay,
+                exercises: this.workoutSchedule[workoutDay],
+                sessionNumber: sessionNumber
+            };
+        }
+        
+        return { type: 'rest', day: null };
+    }
+    
+    renderCalendar() {
+        const year = this.currentDate.getFullYear();
+        const month = this.currentDate.getMonth();
+        
+        document.getElementById('currentMonth').textContent = 
+            new Date(year, month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        
+        const firstDay = new Date(year, month, 1);
+        const lastDay = new Date(year, month + 1, 0);
+        const startDate = new Date(firstDay);
+        startDate.setDate(startDate.getDate() - firstDay.getDay());
+        
+        const calendarGrid = document.getElementById('calendarGrid');
+        calendarGrid.innerHTML = '';
+        
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        for (let i = 0; i < 42; i++) {
+            const date = new Date(startDate);
+            date.setDate(startDate.getDate() + i);
+            
+            const dayDiv = document.createElement('div');
+            dayDiv.className = 'calendar-day';
+            
+            if (date.getMonth() !== month) {
+                dayDiv.classList.add('other-month');
+            }
+            
+            if (date.getTime() === today.getTime()) {
+                dayDiv.classList.add('today');
+            }
+            
+            const workout = this.getWorkoutForDate(date);
+            
+            const workoutTypeDiv = document.createElement('div');
+            workoutTypeDiv.className = `workout-type workout-${workout.type}`;
+            workoutTypeDiv.textContent = workout.type === 'rest' ? 'Rest' : workout.type.charAt(0).toUpperCase() + workout.type.slice(1);
+            
+            // Make workout types draggable (except rest days)
+            if (workout.type !== 'rest') {
+                workoutTypeDiv.draggable = true;
+                workoutTypeDiv.dataset.workoutDay = workout.day;
+                workoutTypeDiv.dataset.date = date.toISOString().split('T')[0];
+                
+                workoutTypeDiv.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.setData('text/plain', JSON.stringify({
+                        workoutDay: workout.day,
+                        sourceDate: date.toISOString().split('T')[0],
+                        workoutType: workout.type
+                    }));
+                    workoutTypeDiv.classList.add('dragging');
+                });
+                
+                workoutTypeDiv.addEventListener('dragend', () => {
+                    workoutTypeDiv.classList.remove('dragging');
+                });
+            }
+            
+            dayDiv.innerHTML = `<div class="day-number">${date.getDate()}</div>`;
+            dayDiv.appendChild(workoutTypeDiv);
+            
+            // Make calendar days drop targets
+            dayDiv.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dayDiv.classList.add('drag-over');
+            });
+            
+            dayDiv.addEventListener('dragleave', () => {
+                dayDiv.classList.remove('drag-over');
+            });
+            
+            dayDiv.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dayDiv.classList.remove('drag-over');
+                
+                const dragData = JSON.parse(e.dataTransfer.getData('text/plain'));
+                const targetDate = date.toISOString().split('T')[0];
+                
+                if (dragData.sourceDate !== targetDate) {
+                    this.swapWorkouts(dragData.sourceDate, targetDate);
+                }
+            });
+            
+            if (workout.day) {
+                workoutTypeDiv.addEventListener('click', () => this.showWorkoutDetails(date, workout));
+            }
+            
+            calendarGrid.appendChild(dayDiv);
+        }
+    }
+    
+    showWorkoutDetails(date, workout) {
+        const modal = new bootstrap.Modal(document.getElementById('workoutModal'));
+        const title = document.getElementById('workoutModalTitle');
+        const body = document.getElementById('workoutModalBody');
+        
+        title.textContent = `${workout.day} - ${date.toLocaleDateString()}`;
+        
+        let html = '<div class="row">';
+        let hasGoalAchieved = false;
+        
+        for (const [exercise, data] of Object.entries(workout.exercises)) {
+            const details = data.details;
+            const weights = this.calculateWeightProgression(exercise, workout.sessionNumber || 1);
+            const goalAchieved = weights.current >= details.target_weight;
+            
+            if (goalAchieved) hasGoalAchieved = true;
+            
+            html += `
+                <div class="col-md-6 mb-4">
+                    <div class="card h-100 ${goalAchieved ? 'border-success' : ''}">
+                        <div class="card-body">
+                            <h6 class="card-title">
+                                <strong>${exercise}</strong>
+                                ${goalAchieved ? '<span class="badge bg-success ms-2">Goal Achieved!</span>' : ''}
+                            </h6>
+                            <div class="mb-2">
+                                <span class="badge bg-primary">${details.sets} sets × ${details.reps} reps</span>
+                            </div>
+                            ${goalAchieved ? `
+                                <div class="alert alert-success mb-3">
+                                    <i class="fas fa-trophy me-2"></i>
+                                    <strong>🎉 Goal Achieved! Set New Goal 🎉</strong>
+                                    <br><small>You've reached your target of ${details.target_weight} lbs!</small>
+                                </div>
+                            ` : ''}
+                            <div class="weight-info">
+                                <div class="current-weight mb-2">
+                                    <strong>Today's Weight: ${weights.current} lbs</strong>
+                                </div>
+                                <div class="progress mb-2" style="height: 8px;">
+                                    <div class="progress-bar ${goalAchieved ? 'bg-success' : ''}" role="progressbar" 
+                                         style="width: ${goalAchieved ? '100' : ((weights.current - details.current_weight) / (details.target_weight - details.current_weight)) * 100}%">
+                                    </div>
+                                </div>
+                                <small class="text-muted">
+                                    Progress: ${details.current_weight} → ${weights.current} → ${details.target_weight} lbs
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        html += '</div>';
+        
+        // Add session info
+        html += `
+            <div class="alert ${hasGoalAchieved ? 'alert-success' : 'alert-info'} mt-3">
+                <i class="fas fa-${hasGoalAchieved ? 'trophy' : 'info-circle'} me-2"></i>
+                <strong>Session ${workout.sessionNumber || 1}</strong> of this workout type
+                <br><small>${hasGoalAchieved ? 'Congratulations on achieving your goals!' : 'Weights increase by 5 lbs every 2-4 sessions using autoregulation'}</small>
+            </div>
+        `;
+        
+        body.innerHTML = html;
+        modal.show();
+    }
+    
+    saveWorkoutArrangement() {
+        const sortableItems = document.querySelectorAll('#sortableWorkouts .list-group-item');
+        this.workoutOrder = Array.from(sortableItems).map(item => item.dataset.day);
+        
+        this.renderCalendar();
+        bootstrap.Modal.getInstance(document.getElementById('rearrangeModal')).hide();
+        
+        // Show success message
+        const alert = document.createElement('div');
+        alert.className = 'alert alert-success alert-dismissible fade show';
+        alert.innerHTML = `
+            Workout order updated successfully!
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.querySelector('.card-body').insertBefore(alert, document.querySelector('.calendar-container'));
+        
+        setTimeout(() => alert.remove(), 3000);
+    }
+    
+    swapWorkouts(sourceDate, targetDate) {
+        // Store the original workout mapping for both dates
+        const sourceWorkout = this.getWorkoutForDate(new Date(sourceDate + 'T00:00:00'));
+        const targetWorkout = this.getWorkoutForDate(new Date(targetDate + 'T00:00:00'));
+        
+        // Create a temporary mapping to swap the workouts
+        if (!this.dateWorkoutOverrides) {
+            this.dateWorkoutOverrides = new Map();
+        }
+        
+        // If source has a workout and target doesn't, or vice versa, or both have workouts
+        if (sourceWorkout.day && targetWorkout.day) {
+            // Swap both workouts
+            this.dateWorkoutOverrides.set(sourceDate, {
+                type: targetWorkout.type,
+                day: targetWorkout.day,
+                exercises: targetWorkout.exercises,
+                sessionNumber: targetWorkout.sessionNumber
+            });
+            this.dateWorkoutOverrides.set(targetDate, {
+                type: sourceWorkout.type,
+                day: sourceWorkout.day,
+                exercises: sourceWorkout.exercises,
+                sessionNumber: sourceWorkout.sessionNumber
+            });
+        } else if (sourceWorkout.day && !targetWorkout.day) {
+            // Move source workout to target date, make source a rest day
+            this.dateWorkoutOverrides.set(targetDate, {
+                type: sourceWorkout.type,
+                day: sourceWorkout.day,
+                exercises: sourceWorkout.exercises,
+                sessionNumber: sourceWorkout.sessionNumber
+            });
+            this.dateWorkoutOverrides.set(sourceDate, {
+                type: 'rest',
+                day: null
+            });
+        } else if (!sourceWorkout.day && targetWorkout.day) {
+            // Move target workout to source date, make target a rest day
+            this.dateWorkoutOverrides.set(sourceDate, {
+                type: targetWorkout.type,
+                day: targetWorkout.day,
+                exercises: targetWorkout.exercises,
+                sessionNumber: targetWorkout.sessionNumber
+            });
+            this.dateWorkoutOverrides.set(targetDate, {
+                type: 'rest',
+                day: null
+            });
+        }
+        
+        // Re-render the calendar to show the changes
+        this.renderCalendar();
+        
+        // Show success message
+        const alert = document.createElement('div');
+        alert.className = 'alert alert-success alert-dismissible fade show position-fixed';
+        alert.style.cssText = 'top: 20px; right: 20px; z-index: 9999; width: 300px;';
+        alert.innerHTML = `
+            <i class="fas fa-exchange-alt me-2"></i>Workouts swapped successfully!
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(alert);
+        
+        setTimeout(() => alert.remove(), 3000);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    new WorkoutCalendar();
+});
+</script>
+{% endblock %}
