@@ -67,6 +67,24 @@
     </div>
 </div>
 
+<!-- Save Schedule Button -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card bg-light">
+            <div class="card-body text-center">
+                <h5 class="card-title">
+                    <i class="fas fa-save text-success me-2"></i>
+                    Save This Schedule
+                </h5>
+                <p class="card-text text-muted">Save this workout plan to access it later from "My Schedules"</p>
+                <button type="button" class="btn btn-success btn-lg" data-bs-toggle="modal" data-bs-target="#saveScheduleModal">
+                    <i class="fas fa-save me-2"></i>Save Schedule
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Workout Detail Modal -->
 <div class="modal fade" id="workoutModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg">
@@ -104,6 +122,48 @@
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" class="btn btn-primary" id="saveArrangement">Save Changes</button>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Save Schedule Modal -->
+<div class="modal fade" id="saveScheduleModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-save text-success me-2"></i>
+                    Save Workout Schedule
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('save_schedule') }}" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="scheduleName" class="form-label">Schedule Name</label>
+                        <input type="text" class="form-control" id="scheduleName" name="schedule_name" 
+                               placeholder="Enter a name for your workout schedule..." 
+                               value="Workout Plan - {{ moment().format('YYYY-MM-DD') if moment else '' }}" required>
+                        <div class="form-text">Give your schedule a memorable name</div>
+                    </div>
+                    
+                    <!-- Schedule Preview -->
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-info-circle me-2"></i>Schedule Details:</h6>
+                        <ul class="mb-0">
+                            <li><strong>Frequency:</strong> {{ frequency }}x per week</li>
+                            <li><strong>Plan Type:</strong> {{ plan_type.replace('_', ' ').title() }}</li>
+                            <li><strong>Workout Days:</strong> {{ schedule.keys() | list | join(', ') }}</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-save me-2"></i>Save Schedule
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
