@@ -1,16 +1,183 @@
-
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+import pyrebase
 import os
+from functools import wraps
+from datetime import datetime
 from main import exercises, workout_days, equipment_options, generate_workout, get_best_exercises, generate_fixed_plan, generate_fastest_plan, generate_yearlong_plan
+import requests
+import socket
+
+
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'workout-generator-secret-key')
+app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'workout-generator-secret-key-change-in-production')
+
+# Firebase configuration
+config = {
+    "apiKey": "AIzaSyDvVTw-08ME_WXY8SKvADGNQBiB04YslUU",  # Note the 'Y' not 'V'
+    "authDomain": "getfit-1e013.firebaseapp.com",
+    "databaseURL": "https://getfit-1e013-default-rtdb.firebaseio.com/",
+    "projectId": "getfit-1e013",
+    "storageBucket": "getfit-1e013.firebasestorage.app",
+    "messagingSenderId": "558927428638",
+    "appId": "1:558927428638:web:5d6eb594aaf0a24fbfc20f"
+}
+def test_network_connectivity():
+    try:
+        socket.create_connection(("8.8.8.8", 53), timeout=3)
+        print("✓ Basic internet connectivity: OK")
+        
+        response = requests.get("https://firebase.googleapis.com/", timeout=10)
+        print("✓ Firebase API accessibility: OK")
+        
+        test_url = f"https://{config['projectId']}-default-rtdb.firebaseio.com/.json"
+        response = requests.get(test_url, timeout=10)
+        print("✓ Your Firebase project accessibility: OK")
+        
+        return True
+    except Exception as e:
+        print(f"✗ Network connectivity issue: {str(e)}")
+        return False
+
+# ADD this debugging route anywhere in your app.py
+@app.route('/debug-firebase')
+def debug_firebase():
+    results = {}
+    
+    try:
+        socket.create_connection(("8.8.8.8", 53), timeout=3)
+        results['internet'] = "✓ Connected"
+    except:
+        results['internet'] = "✗ No internet connection"
+    
+    try:
+        response = requests.get("https://firebase.googleapis.com/", timeout=5)
+        results['firebase_api'] = f"✓ Firebase API accessible (Status: {response.status_code})"
+    except Exception as e:
+        results['firebase_api'] = f"✗ Firebase API error: {str(e)}"
+    
+    try:
+        test_url = f"https://{config['projectId']}-default-rtdb.firebaseio.com/.json"
+        response = requests.get(test_url, timeout=5)
+        results['database'] = f"✓ Database accessible (Status: {response.status_code})"
+    except Exception as e:
+        results['database'] = f"✗ Database error: {str(e)}"
+    
+    return f"<pre>" + "\n".join([f"{k}: {v}" for k, v in results.items()]) + "</pre>"
+
+
+# Initialize Firebase
+firebase = pyrebase.initialize_app(config)
+auth = firebase.auth()
+db = firebase.database()
+
+# Login required decorator
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user' not in session:
+            flash('Please log in to access this page.', 'error')
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
 
 @app.route('/')
 def index():
+    if 'user' in session:
+        return render_template('index.html', user=session['user'])
     return render_template('index.html')
 
+@app.route('/signup', methods=['GET', 'POST'])
+# REPLACE your existing signup route with this enhanced version
+@app.route('/signup', methods=['GET', 'POST'])
+def signup():
+    if request.method == 'POST':
+        email = request.form['email']
+        password = request.form['password']
+        username = request.form['username']
+        
+        print(f"=== SIGNUP ATTEMPT ===")
+        print(f"Email: {email}")
+        print(f"Username: {username}")
+        print(f"Password length: {len(password)}")
+        
+        try:
+            print("Attempting Firebase user creation...")
+            
+            # Create user account
+            user = auth.create_user_with_email_and_password(email, password)
+            print(f"✓ User created: {user['localId']}")
+            
+            # Store additional user data in database
+            user_data = {
+                "username": username,
+                "email": email,
+                "created_at": str(datetime.now()),
+                "workout_plans": {},
+                "saved_schedules": {}
+            }
+            
+            print("Saving to database...")
+            db.child("users").child(user['localId']).set(user_data)
+            print("✓ User data saved")
+            
+            flash('Account created successfully! Please log in.', 'success')
+            return redirect(url_for('login'))
+            
+        except Exception as e:
+            print(f"✗ Full error details: {str(e)}")
+            print(f"Error type: {type(e).__name__}")
+            
+            error_message = str(e)
+            
+            if "EMAIL_EXISTS" in error_message:
+                flash('Email already exists!', 'error')
+            elif "WEAK_PASSWORD" in error_message:
+                flash('Password should be at least 6 characters!', 'error')
+            elif "INVALID_EMAIL" in error_message:
+                flash('Please enter a valid email address!', 'error')
+            else:
+                flash(f'Error creating account: {error_message}', 'error')
+    
+    return render_template('auth/signup.html')
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        email = request.form['email']
+        password = request.form['password']
+        
+        try:
+            # Sign in user
+            user = auth.sign_in_with_email_and_password(email, password)
+            
+            # Get user data from database
+            user_data = db.child("users").child(user['localId']).get().val()
+            
+            # Store in session
+            session['user'] = {
+                'id': user['localId'],
+                'email': email,
+                'username': user_data['username'] if user_data else email
+            }
+            
+            flash(f'Welcome back, {session["user"]["username"]}!', 'success')
+            return redirect(url_for('index'))
+            
+        except Exception as e:
+            flash('Invalid email or password!', 'error')
+    
+    return render_template('auth/login.html')
+
+@app.route('/logout')
+def logout():
+    username = session.get('user', {}).get('username', 'User')
+    session.clear()
+    flash(f'Goodbye, {username}!', 'success')
+    return redirect(url_for('index'))
+
 @app.route('/setup', methods=['GET', 'POST'])
+@login_required
 def setup():
     if request.method == 'POST':
         try:
@@ -43,17 +210,19 @@ def setup():
         except ValueError:
             flash('Please enter valid numbers for age and frequency.', 'error')
     
-    return render_template('setup.html', equipment_options=equipment_options)
+    return render_template('setup.html', equipment_options=equipment_options, user=session['user'])
 
 @app.route('/workout-plan')
+@login_required
 def workout_plan():
     if 'workout_plan' not in session:
         return redirect(url_for('setup'))
     
     plan = session['workout_plan']
-    return render_template('workout_plan.html', plan=plan)
+    return render_template('workout_plan.html', plan=plan, user=session['user'])
 
 @app.route('/replace-exercise', methods=['POST'])
+@login_required
 def replace_exercise():
     if 'workout_plan' not in session:
         return jsonify({'success': False, 'message': 'No workout plan found'})
@@ -132,6 +301,7 @@ def replace_exercise():
         return jsonify({'success': False, 'message': str(e)})
 
 @app.route('/exercise-details', methods=['GET', 'POST'])
+@login_required
 def exercise_details():
     if 'workout_plan' not in session:
         return redirect(url_for('setup'))
@@ -177,9 +347,10 @@ def exercise_details():
         session['exercise_details'] = exercise_details
         return redirect(url_for('progression_plan'))
     
-    return render_template('exercise_details.html', plan=plan)
+    return render_template('exercise_details.html', plan=plan, user=session['user'])
 
 @app.route('/progression-plan', methods=['GET', 'POST'])
+@login_required
 def progression_plan():
     if 'exercise_details' not in session:
         return redirect(url_for('exercise_details'))
@@ -189,9 +360,10 @@ def progression_plan():
         session['plan_type'] = plan_type
         return redirect(url_for('final_schedule'))
     
-    return render_template('progression_plan.html')
+    return render_template('progression_plan.html', user=session['user'])
 
 @app.route('/final-schedule')
+@login_required
 def final_schedule():
     if 'exercise_details' not in session or 'plan_type' not in session:
         return redirect(url_for('setup'))
@@ -247,13 +419,101 @@ def final_schedule():
                          frequency=frequency,
                          workout_pattern=workout_pattern,
                          plan_type=plan_type,
-                         user_data=user_data)
+                         user_data=user_data,
+                         user=session['user'])
+
+@app.route('/save-schedule', methods=['POST'])
+@login_required
+def save_schedule():
+    user_id = session['user']['id']
+    
+    if 'exercise_details' not in session or 'plan_type' not in session:
+        flash('No schedule to save. Please create a workout plan first.', 'error')
+        return redirect(url_for('setup'))
+    
+    # Create schedule data
+    schedule_data = {
+        'workout_plan': session['workout_plan'],
+        'exercise_details': session['exercise_details'],
+        'plan_type': session['plan_type'],
+        'user_data': session['user_data'],
+        'created_at': str(datetime.now()),
+        'name': request.form.get('schedule_name', f"Workout Plan - {datetime.now().strftime('%Y-%m-%d')}")
+    }
+    
+    # Generate schedule ID
+    schedule_id = f"schedule_{int(datetime.now().timestamp())}"
+    
+    # Save to Firebase
+    db.child("users").child(user_id).child("saved_schedules").child(schedule_id).set(schedule_data)
+    
+    flash('Workout schedule saved successfully!', 'success')
+    return redirect(url_for('my_schedules'))
+
+@app.route('/my-schedules')
+@login_required
+def my_schedules():
+    user_id = session['user']['id']
+    user_data = db.child("users").child(user_id).get().val()
+    
+    schedules = user_data.get('saved_schedules', {}) if user_data else {}
+    schedule_list = []
+    
+    for schedule_id, schedule in schedules.items():
+        schedule['id'] = schedule_id
+        schedule_list.append(schedule)
+    
+    # Sort by creation date (newest first)
+    schedule_list.sort(key=lambda x: x.get('created_at', ''), reverse=True)
+    
+    return render_template('my_schedules.html', schedules=schedule_list, user=session['user'])
+
+@app.route('/load-schedule/<schedule_id>')
+@login_required
+def load_schedule(schedule_id):
+    user_id = session['user']['id']
+    
+    # Get schedule from database
+    schedule_data = db.child("users").child(user_id).child("saved_schedules").child(schedule_id).get().val()
+    
+    if not schedule_data:
+        flash('Schedule not found!', 'error')
+        return redirect(url_for('my_schedules'))
+    
+    # Load into session
+    session['workout_plan'] = schedule_data['workout_plan']
+    session['exercise_details'] = schedule_data['exercise_details']
+    session['plan_type'] = schedule_data['plan_type']
+    session['user_data'] = schedule_data['user_data']
+    
+    flash(f'Loaded schedule: {schedule_data["name"]}', 'success')
+    return redirect(url_for('final_schedule'))
+
+@app.route('/delete-schedule/<schedule_id>')
+@login_required
+def delete_schedule(schedule_id):
+    user_id = session['user']['id']
+    
+    # Delete from database
+    db.child("users").child(user_id).child("saved_schedules").child(schedule_id).remove()
+    
+    flash('Schedule deleted successfully!', 'success')
+    return redirect(url_for('my_schedules'))
 
 @app.route('/reset')
 def reset():
-    session.clear()
+    # Only clear workout-related session data, keep user logged in
+    workout_keys = ['user_data', 'workout_plan', 'exercise_muscle_map', 'eq_types', 
+                   'exercise_details', 'plan_type', 'replacement_counts']
+    for key in workout_keys:
+        session.pop(key, None)
+    
     flash('Workout plan reset successfully!', 'success')
     return redirect(url_for('index'))
 
 if __name__ == '__main__':
+    print("=== STARTING LOCAL DEVELOPMENT SERVER ===")
+    print("Testing network connectivity...")
+    test_network_connectivity()
+    print("Visit http://localhost:5001/debug-firebase to test Firebase connectivity")
     app.run(host='0.0.0.0', port=5001, debug=True)
