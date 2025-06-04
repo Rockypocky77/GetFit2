@@ -454,19 +454,42 @@ def save_schedule():
 @login_required
 def my_schedules():
     user_id = session['user']['id']
-    user_data = db.child("users").child(user_id).get().val()
     
-    schedules = user_data.get('saved_schedules', {}) if user_data else {}
-    schedule_list = []
-    
-    for schedule_id, schedule in schedules.items():
-        schedule['id'] = schedule_id
-        schedule_list.append(schedule)
-    
-    # Sort by creation date (newest first)
-    schedule_list.sort(key=lambda x: x.get('created_at', ''), reverse=True)
-    
-    return render_template('my_schedules.html', schedules=schedule_list, user=session['user'])
+    try:
+        print(f"=== MY SCHEDULES DEBUG ===")
+        print(f"User ID: {user_id}")
+        
+        # Get user data from Firebase
+        user_data = db.child("users").child(user_id).get().val()
+        print(f"User data retrieved: {user_data is not None}")
+        
+        if not user_data:
+            print("No user data found")
+            flash('User data not found. Please try logging out and back in.', 'error')
+            return render_template('my_schedules.html', schedules=[], user=session['user'])
+        
+        # Get saved schedules
+        schedules = user_data.get('saved_schedules', {})
+        print(f"Found {len(schedules)} schedules")
+        
+        schedule_list = []
+        
+        for schedule_id, schedule in schedules.items():
+            if schedule:  # Make sure schedule data exists
+                schedule['id'] = schedule_id
+                schedule_list.append(schedule)
+        
+        # Sort by creation date (newest first)
+        schedule_list.sort(key=lambda x: x.get('created_at', ''), reverse=True)
+        
+        print(f"Returning {len(schedule_list)} valid schedules")
+        return render_template('my_schedules.html', schedules=schedule_list, user=session['user'])
+        
+    except Exception as e:
+        print(f"Error in my_schedules: {str(e)}")
+        print(f"Error type: {type(e).__name__}")
+        flash(f'Error loading schedules: {str(e)}', 'error')
+        return render_template('my_schedules.html', schedules=[], user=session['user'])
 
 @app.route('/load-schedule/<schedule_id>')
 @login_required
