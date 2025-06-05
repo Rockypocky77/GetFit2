@@ -176,9 +176,118 @@ def logout():
     flash(f'Goodbye, {username}!', 'success')
     return redirect(url_for('index'))
 
+
+# Add these helper functions after your existing helper functions
+
+def get_user_settings(user_id):
+    """Get user settings from Firebase"""
+    try:
+        user_data = db.child("users").child(user_id).get().val()
+        if user_data and 'settings' in user_data:
+            return user_data['settings']
+        return None
+    except Exception as e:
+        print(f"Error getting user settings: {str(e)}")
+        return None
+
+def save_user_settings(user_id, settings):
+    """Save user settings to Firebase"""
+    try:
+        db.child("users").child(user_id).child("settings").set(settings)
+        return True
+    except Exception as e:
+        print(f"Error saving user settings: {str(e)}")
+        return False
+
+# Add these new routes after your existing routes
+
+@app.route('/settings', methods=['GET', 'POST'])
+@login_required
+def settings():
+    user_id = session['user']['id']
+    
+    if request.method == 'POST':
+        try:
+            age = int(request.form.get('age', 25))
+            if age < 12:
+                age = 12
+            frequency = int(request.form.get('frequency', 4))
+            equipment = int(request.form.get('equipment', 3))
+            
+            if frequency < 3 or frequency > 6:
+                frequency = 4
+            
+            # Create settings object
+            settings = {
+                'age': age,
+                'frequency': frequency,
+                'equipment': equipment,
+                'updated_at': str(datetime.now())
+            }
+            
+            # Save to Firebase
+            if save_user_settings(user_id, settings):
+                # Also update session for immediate use
+                session['user_data'] = {
+                    'age': age,
+                    'frequency': frequency,
+                    'equipment': equipment
+                }
+                flash('Settings saved successfully!', 'success')
+            else:
+                flash('Error saving settings. Please try again.', 'error')
+                
+        except ValueError:
+            flash('Please enter valid numbers for age and frequency.', 'error')
+    
+    # Get current settings
+    current_settings = get_user_settings(user_id)
+    
+    return render_template('settings.html', 
+                         settings=current_settings, 
+                         equipment_options=equipment_options,
+                         user=session['user'])
+
+@app.route('/quick-generate')
+@login_required
+def quick_generate():
+    """Generate workout using saved user settings"""
+    user_id = session['user']['id']
+    
+    # Get saved settings
+    saved_settings = get_user_settings(user_id)
+    
+    if not saved_settings:
+        flash('No saved settings found. Please update your settings first.', 'error')
+        return redirect(url_for('settings'))
+    
+    # Load settings into session
+    session['user_data'] = {
+        'age': saved_settings['age'],
+        'frequency': saved_settings['frequency'],
+        'equipment': saved_settings['equipment']
+    }
+    
+    # Generate workout plan
+    result = generate_workout(saved_settings['equipment'])
+    if result:
+        plan, exercise_muscle_map, eq_types = result
+        session['workout_plan'] = plan
+        session['exercise_muscle_map'] = exercise_muscle_map
+        session['eq_types'] = eq_types
+        
+        flash('Workout plan generated using your saved settings!', 'success')
+        return redirect(url_for('workout_plan'))
+    else:
+        flash('Error generating workout plan. Please try again.', 'error')
+        return redirect(url_for('settings'))
+
+# Update your existing setup route to check for saved settings
 @app.route('/setup', methods=['GET', 'POST'])
 @login_required
 def setup():
+    user_id = session['user']['id']
+    
     if request.method == 'POST':
         try:
             age = int(request.form.get('age', 25))
@@ -210,8 +319,13 @@ def setup():
         except ValueError:
             flash('Please enter valid numbers for age and frequency.', 'error')
     
-    return render_template('setup.html', equipment_options=equipment_options, user=session['user'])
-
+    # Check if user has saved settings and auto-populate
+    saved_settings = get_user_settings(user_id)
+    
+    return render_template('setup.html', 
+                         equipment_options=equipment_options, 
+                         user=session['user'],
+                         saved_settings=saved_settings)
 @app.route('/workout-plan')
 @login_required
 def workout_plan():
