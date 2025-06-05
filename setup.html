@@ -1,4 +1,3 @@
-
 {% extends "base.html" %}
 
 {% block title %}Setup - Workout Generator{% endblock %}
@@ -6,6 +5,16 @@
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-md-8">
+        {% if saved_settings %}
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>Using your saved settings:</strong> Age {{ saved_settings.age }}, {{ saved_settings.frequency }}x/week workouts. 
+            <a href="{{ url_for('quick_generate') }}" class="btn btn-sm btn-success ms-2">
+                <i class="fas fa-bolt me-1"></i>Quick Generate
+            </a>
+        </div>
+        {% endif %}
+
         <div class="card">
             <div class="card-header">
                 <h3 class="mb-0">
@@ -22,7 +31,7 @@
                                     <i class="fas fa-birthday-cake me-1"></i>Age
                                 </label>
                                 <input type="number" class="form-control" id="age" name="age" 
-                                       value="25" min="12" max="80" required>
+                                       value="{{ saved_settings.age if saved_settings else 25 }}" min="12" max="80" required>
                             </div>
                         </div>
                         <div class="col-md-6">
@@ -31,10 +40,10 @@
                                     <i class="fas fa-calendar-week me-1"></i>Workouts per Week
                                 </label>
                                 <select class="form-select" id="frequency" name="frequency" required>
-                                    <option value="3">3 times per week</option>
-                                    <option value="4" selected>4 times per week (Recommended)</option>
-                                    <option value="5">5 times per week</option>
-                                    <option value="6">6 times per week</option>
+                                    <option value="3" {% if saved_settings and saved_settings.frequency == 3 %}selected{% endif %}>3 times per week</option>
+                                    <option value="4" {% if not saved_settings or saved_settings.frequency == 4 %}selected{% endif %}>4 times per week (Recommended)</option>
+                                    <option value="5" {% if saved_settings and saved_settings.frequency == 5 %}selected{% endif %}>5 times per week</option>
+                                    <option value="6" {% if saved_settings and saved_settings.frequency == 6 %}selected{% endif %}>6 times per week</option>
                                 </select>
                             </div>
                         </div>
@@ -50,7 +59,7 @@
                                 <div class="form-check">
                                     <input class="form-check-input" type="radio" name="equipment" 
                                            id="equipment{{ value }}" value="{{ value }}"
-                                           {% if value == 3 %}checked{% endif %}>
+                                           {% if (saved_settings and saved_settings.equipment == value) or (not saved_settings and value == 3) %}checked{% endif %}>
                                     <label class="form-check-label" for="equipment{{ value }}">
                                         {% if value == 1 %}
                                             <i class="fas fa-weight-hanging me-2"></i>{{ description }}
